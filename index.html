@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+
+  #benign-list p.is-selected {
+    background-color: #f0f0f0;
+  }
+
+
+  #benign-list p.is-selected {
+    background-color: #f0f0f0;
+  }
+
+        /* 右侧导航栏的样式 */
+    .sidebar {
+    position: fixed;
+    top: 100px;
+    right: 0;
+    width: 140px;
+    background-color: lightgray;
+    border: 1px solid #ddd;
+    padding: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    z-index: 1000; /* 增加 z-index 确保它在其他元素的上层 */
+}
+  .small-caps {
+      font-variant: small-caps;
+    }
+    .sidebar:hover {
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+    .sidebar h4 {
+        font-size: 18px;
+        text-align: center;
+        margin-bottom: 15px;
+        color: #333;
+    }
+    .sidebar ul {
+        list-style-type: none;
+        padding: 0;
+    }
+    .sidebar ul li {
+        margin-bottom: 12px;
+    }
+    .sidebar ul li a {
+        text-decoration: none;
+        color: #555;
+        font-weight: bold;
+        font-size: 14px;
+        padding: 10px;
+        display: block;
+        transition: background-color 0.3s ease, color 0.3s ease;
+        border-radius: 5px;
+    }
+    .sidebar ul li a:hover {
+        background-color: #ff5722;
+        color: #ffffff;
+    }
+
+    @media (max-width: 1374px) {
+        .sidebar {
+            display: none;
+        }
+    }
+
+    table {
+        width: 90%;
+        margin: 20px auto;
+        border-collapse: collapse;
+        text-align: center;  /* Horizontally center content */
+        vertical-align: middle;  /* Vertically center content */
+        font-size: 14px;
+    }
+    th, td {
+        padding: 12px;
+        text-align: center;  /* Horizontally center content */
+        vertical-align: middle;  /* Vertically center content */
+        border: 1px solid #ddd;
+    }
+    th {
+        background-color: #f2f2f2;
+        text-align: center;  /* Horizontally center content */
+        vertical-align: middle;  /* Vertically center content */
+        font-weight: bold;
+    }
+    caption {
+        caption-side: top;
+        text-align: center;
+        font-weight: bold;
+        padding: 10px;
+        font-size: 20px;
+    }
+    /*tr:nth-child(even) {*/
+    /*    background-color: #f9f9f9;*/
+    /*    text-align: center;  !* Horizontally center content *!*/
+    /*    vertical-align: middle;  !* Vertically center content *!*/
+    /*}*/
+    .highlight {
+        font-weight: bold;
+        color: #ff5722;
+    }
+    .hidden {
+        display: none;
+    }
+    p {
+      font-size: 16px; 
+    }
+    ol {
+      font-size: 16px;
+    }
+</style>
+   <!-- <script src="https://kit.fontawesome.com/c221ce7c0d.js" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="./static/js/fontawesome.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://kit.fontawesome.com/f8ddf9854a.js" crossorigin="anonymous"></script> -->
+  <meta charset="utf-8">
+  <meta name="description"
+        content="When Benign Inputs Lead to Severe Harms: Eliciting Unsafe Unintended Behaviors of Computer-Use Agents">
+  <meta name="keywords" content="AutoElicit, AutoElicit-Bench, unintended behaviors, agent safety, agent robustness, computer-use agents, CUA, Operator, Claude, LMM, LMM Evaluation, Vision Language Model, Large Language Model, Large Multimodal Model, artificial intelligence, AI, AGI, artificial general intelligence">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AutoElicit Homepage</title>
+
+  <meta name="og:title" content="AutoElicit" />
+  <meta name="og:description" content="Automatic elicitation of unintended behaviors from computer-use agents from realistic, benign instructions, using an agentic framework to iteratively perturb benign instructions from CUA execution feedback." />
+  <meta name="og:url" content="https://osu-nlp-group.github.io/" />
+  <meta name="og:image" content="https://osu-nlp-group.github.io/static/images/og.png" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://osu-nlp-group.github.io/static/images/og.png" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AutoElicit" />
+
+<link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="stylesheet" href="./static/css/leaderboard.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/styles/default.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+  <!-- <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator_bulma.min.css" rel="stylesheet">
+  <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script> -->
+  <script type="text/javascript" src="static/js/sort-table.js" defer></script>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="./static/js/bulma-carousel.min.js"></script>
+  <script src="./static/js/bulma-slider.min.js"></script>
+  <script src="./static/js/explorer-index.js"></script>
+  <script src="./static/js/question_card.js"></script>
+
+  <script src="./static/js/leaderboard_testmini.js"></script>
+  <!-- <script src="./data/results/output_folders.js" defer></script>
+  <script src="./data/results/model_scores.js" defer></script>
+
+  <script src="./visualizer/data/data_public.js" defer></script> -->
+  <style>
+    pre {
+        max-height: 400px; 
+        overflow-x: auto; 
+        overflow-y: auto;
+        background-color: #f0f0f0; 
+        padding: 10px;
+        border: 1px solid #ccc; 
+        text-align: left;
+    }
+</style>
+</head>
+<body>
+
+
+
+<!-- 右侧导航栏 -->
+<div class="sidebar">
+  <ul>
+    
+  
+  </ul>
+</div>
+
+
+
+
+<nav class="navbar" role="navigation" aria-label="main navigation">
+  <div class="navbar-brand">
+    <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+    </a>
+  </div>
+  <div class="navbar-menu">
+    <div class="navbar-start" style="flex-grow: 1; justify-content: center;">
+      <div class="navbar-item has-dropdown is-hoverable">
+        <a class="navbar-link">
+          More Research
+        </a>
+        <div class="navbar-dropdown">
+          <a class="navbar-item" href="https://arxiv.org/abs/2409.11295">
+            EIA
+          </a>
+          <a class="navbar-item" href="https://arxiv.org/abs/2404.07921">
+            AmpleGCG
+          </a>
+          <a class="navbar-item" href="https://osu-nlp-group.github.io/UGround/">
+            UGround
+          </a>
+          <a class="navbar-item" href="https://arxiv.org/abs/2504.01382">
+            Online-Mind2Web
+          </a>
+          <a class="navbar-item" href="https://arxiv.org/abs/2411.06559">
+            WebDreamer
+          </a>
+          <a class="navbar-item" href="https://osu-nlp-group.github.io/SeeAct/">
+            SeeAct
+          </a>
+          <a class="navbar-item" href="https://osu-nlp-group.github.io/Mind2Web/">
+              Mind2Web
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</nav>
+
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title is-bold">
+            <!-- <img src="static/images/uground-icon.png" style="width:1.5em;vertical-align: middle" alt="Logo"/> -->
+            <span class="mmmu" style="vertical-align: middle">AutoElicit</span>
+            </h1>
+          <h2 class="subtitle is-3 publication-subtitle">
+        <!-- <em>Realistic Adversarial Testing of Computer-Use Agents in Hybrid Web-OS Environments</em><br> -->
+        When Benign Inputs Lead to Severe Harms: Eliciting Unsafe Unintended Behaviors of Computer-Use Agents
+        <!-- Universal Visual Grounding for GUI Agents -->
+    </h2>
+<!-- <h3 class="subtitle is-4 publication-subtitle" style="color: #ed4b82" >
+            ICLR'25 Oral (1.8%)
+          </h3> -->
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              <a href="https://jjones62202.github.io/">Jaylen Jones</a><sup>*†,1</sup>,</span>
+            </span>
+            <span class="author-block">
+              <a href="https://zhehaozhang123.github.io/">Zhehao Zhang</a><sup>*†,1</sup>,</span>
+            </span>
+            <span class="author-block">
+              <a href="https://nnnyt.github.io/">Yuting Ning</a><sup>1</sup>,</span>
+            </span>
+            <span class="author-block">
+              <a href="https://scholar.google.com/citations?user=AlsMV98AAAAJ&hl=en&oi=ao">Eric Fosler-Lussier</a><sup>1</sup>,</span>
+            </span><br>
+          
+            <span class="author-block">
+              <a href="https://scholar.google.com/citations?user=30mr9vYAAAAJ&hl=en">Pierre-Luc St-Charles</a><sup>2,3</sup>,</span>
+            </span>
+            <span class="author-block">
+              <a href="https://yoshuabengio.org/">Yoshua Bengio</a><sup>2,3,4</sup>,</span>
+            </span>
+            <span class="author-block">
+              <a href="https://dawnsong.io/">Dawn Song</a><sup>5</sup>,</span>
+            </span>
+            <span class="author-block">
+              <a href="https://ysu1989.github.io/">Yu Su</a><sup>1</sup>,</span>
+            </span>
+            <span class="author-block">
+              <a href="https://u.osu.edu/ihudas/people/"">Huan Sun</a><sup>†,1</sup>,</span>
+          </div>
+          
+          <br>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>1</sup>The Ohio State University</span>
+            <span class="author-block"><sup>2</sup>LawZero</span>
+            <span class="author-block"><sup>3</sup>Mila - Quebec AI Institute</span><br>
+            <span class="author-block"><sup>4</sup>Université de Montréal</span>
+            <span class="author-block"><sup>5</sup>UC Berkeley</span>
+          </div>
+          
+          <br>
+
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><em>* Equal contribution</em></span>
+        </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              † Correspondence to
+              <a href="mailto:jones.6278@osu.edu">jones.6278@osu.edu</a>,
+              <a href="mailto:zhang.16420@osu.edu">zhang.16420@osu.edu</a>,
+              <a href="mailto:sun.397@osu.edu">sun.397@osu.edu</a>
+            </span>
+          </div>
+          
+
+          <br>
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+
+              <span class="link-block">
+                  <a href="" target="_blank" class="external-link button is-normal is-rounded is-dark">
+<!--                <a href="" target="_blank"-->
+<!--                   class="external-link button is-normal is-rounded is-dark">-->
+                  <span class="icon">
+                      <i class="fas fa-file-pdf"></i>
+                  </span>
+                  <span>Paper</span>
+                </a>
+              </span>
+
+                <span class="link-block">
+               <a href="" target="_blank" class="external-link button is-normal is-rounded is-dark">
+                <span class="icon">
+                  <i class="far fa-images"></i>
+              </span>
+                 <span>Evaluation Data</span>
+               </a>
+             </span>
+
+             <span class="link-block">
+                    <a href=""  target="_blank" class="external-link button is-normal is-rounded is-dark">
+                      <span class="icon">
+                        <svg class="svg-inline--fa fa-github fa-w-16" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="github" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512" data-fa-i2svg=""><path fill="currentColor" d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"></path></svg><!-- <i class="fab fa-github" aria-hidden="true"></i> Font Awesome fontawesome.com -->
+                      </span>
+                      <span>Code</span>
+                    </a>
+                  </span>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!--<p class="has-text-centered"><img src="static/images/framework.png" alt="MY ALT TEXT" style="width:900px"></p>-->
+
+<style>
+  .center {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 80%;
+  }
+  </style>
+<!-- 
+
+<h1 style="text-align: center; margin-top: 30px; font-size: 50px; font-weight: bold;">
+    <span style="vertical-align: middle">Videos</span>
+</h1>
+ -->
+
+
+<footer class="footer">
+  <!-- <div class="container"> -->
+    <div class="content has-text-centered">
+    </div>
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <p>
+            This website is adapted from <a href="https://mmmu-benchmark.github.io/">MMMU</a>, <a href="https://nerfies.github.io/">Nerfies</a> and <a href="https://mathvista.github.io/">MathVista</a>, licensed under a <a rel="license"
+                                                href="http://creativecommons.org/licenses/by-sa/4.0/">Creative
+            Commons Attribution-ShareAlike 4.0 International License</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  <!-- </div> -->
+
+</footer>
+
+
+</body>
+</html>
