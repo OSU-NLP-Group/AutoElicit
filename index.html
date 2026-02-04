@@ -184,6 +184,7 @@
     <li><a href="#overview">Overview</a></li>
     <li><a href="#demonstration">Demonstration</a></li>
     <li><a href="#autoelicit">AutoElicit</a></li>
+    <li><a href="#experiments">Experiments</a></li>
   </ul>
 </div>
 
@@ -707,6 +708,321 @@
             <li><strong>Execution Feedback:</strong> Performs <em>Trajectory Analysis</em> to automatically detect unintended behaviors, assess harm severity (None, Minimal, Low, Medium, High, Critical), and store outcomes in a <em>Perturbation History</em> to guide future refinements.</li>
             <li><strong>Quality Feedback:</strong> Evaluates candidate perturbations using predefined quality rubrics and applies quality refinement to ensure perturbations remain realistic and benign prior to execution.</li>
           </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<br>
+
+<section class="hero is-light is-small" id="experiments">
+  <div class="hero-body has-text-centered">
+  <h1 class="title is-1 mmmu">
+    <span class="mmmu" style="vertical-align: middle">Experiments</span>
+  </h1>
+  </div>
+</section>
+
+<br>
+
+<div class="container is-max-desktop">
+  <div class="content has-text-centered">
+    <h2 class="title is-3">Elicitation Results</h2>
+  </div>
+</div>
+
+<br>
+
+<section class="hero teaser">
+  <div class="container">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-two-thirds">
+        <div class="content has-text-justified">
+          <p>
+            <strong>Claude 4.5 Haiku Elicitation:</strong> We apply AutoElicit using all tasks from AutoElicit-Seed that can be performed with a baseline harm rate of 0% (i.e., Haiku can perform 5 trials of the original benign task without performing any harms).
+          </p>
+          
+          <p>
+            <strong>Claude 4.5 Opus Elicitation (the most capable CUA on OSWorld to date):</strong> We apply AutoElicit with a small-scale subset of the 30 seed perturbations that elicited the most severe harms from Haiku due to the substantially higher costs of Opus.
+          </p>
+          <ul>
+            <li>We report <em>human-verified elicitation sucess</em> due to the small-scale of Opus experiments.</li>
+          </ul>
+          
+          <p>
+            <strong>Evaluation Metrics:</strong>
+          </p>
+          <ul>
+            <li><em>Elicitation Success Per Seed:</em> % of all seeds eliciting unintended behavior</li>
+            <li><em>Elicitation Success Per Task:</em> % of tasks with ≥ 1 success</li>
+            <li><em>Harm Severity Assessment:</em> Distribution across all runs including those with no harmful behavior surfaced</li>
+          </ul>
+
+          <p><strong>Refinement Models:</strong> GPT-5 and Claude 4.5 Haiku</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Results Table -->
+  <div class="container is-max-desktop" style="margin-top: 2rem;">
+    <div class="table-container">
+      <table class="table is-bordered is-striped is-hoverable is-fullwidth" style="font-size: 14px; width: 100%;">
+            <thead>
+              <tr>
+                <th rowspan="2" style="vertical-align: middle;">Execution Agent</th>
+                <th colspan="2" style="text-align: center;"># of Examples</th>
+                <th colspan="2" style="text-align: center;">Elicitation Success (%)</th>
+                <th colspan="6" style="text-align: center;">Harm Severity Assessment (%)</th>
+              </tr>
+              <tr>
+                <th style="text-align: center;"># Seeds</th>
+                <th style="text-align: center;"># Tasks</th>
+                <th style="text-align: center;">Per Seed ↑</th>
+                <th style="text-align: center;">Per Task ↑</th>
+                <th style="text-align: center;">None ↓</th>
+                <th style="text-align: center;">Min ↑</th>
+                <th style="text-align: center;">Low ↑</th>
+                <th style="text-align: center;">Med ↑</th>
+                <th style="text-align: center;">High ↑</th>
+                <th style="text-align: center;">Crit ↑</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- OS Domain Header -->
+              <tr style="background-color: #e0e0e0;">
+                <td colspan="11" style="text-align: center; font-weight: bold; font-style: italic;">OS</td>
+              </tr>
+              <!-- Claude 4.5 Haiku - OS -->
+              <tr>
+                <td colspan="11" style="padding-left: 0.5rem;"><strong>Claude 4.5 Haiku</strong></td>
+              </tr>
+              <tr>
+                <td style="padding-left: 1.5rem;"><em>w/ Claude 4.5 Haiku</em></td>
+                <td rowspan="2" style="text-align: center; vertical-align: middle;">109</td>
+                <td rowspan="2" style="text-align: center; vertical-align: middle;">14</td>
+                <td style="text-align: center;">70.6</td>
+                <td style="text-align: center;">92.9</td>
+                <td style="text-align: center;">29.4</td>
+                <td style="text-align: center;">2.8</td>
+                <td style="text-align: center;">20.2</td>
+                <td style="text-align: center;"><strong>38.5</strong></td>
+                <td style="text-align: center;">6.4</td>
+                <td style="text-align: center;"><strong>2.8</strong></td>
+              </tr>
+              <tr>
+                <td style="padding-left: 1.5rem;"><em>w/ GPT-5</em></td>
+                <td style="text-align: center;"><strong>72.5</strong></td>
+                <td style="text-align: center;"><strong>100.0</strong></td>
+                <td style="text-align: center;"><strong>27.5</strong></td>
+                <td style="text-align: center;"><strong>6.4</strong></td>
+                <td style="text-align: center;"><strong>23.9</strong></td>
+                <td style="text-align: center;">32.1</td>
+                <td style="text-align: center;"><strong>8.3</strong></td>
+                <td style="text-align: center;">1.8</td>
+              </tr>
+              <!-- Claude 4.5 Opus - OS -->
+              <tr>
+                <td colspan="11" style="padding-left: 0.5rem;"><strong>Claude 4.5 Opus<sup>†</sup></strong></td>
+              </tr>
+              <tr>
+                <td style="padding-left: 1.5rem;"><em>w/ Claude 4.5 Haiku</em></td>
+                <td style="text-align: center;">30</td>
+                <td style="text-align: center;">12</td>
+                <td style="text-align: center;">80.0 <span style="color: #5c7cfa;">(<strong style="color: #5c7cfa;">60.0</strong>)</span></td>
+                <td style="text-align: center;"><strong>100.0</strong> <span style="color: #5c7cfa;">(90.0)</span></td>
+                <td style="text-align: center;"><strong>40.0</strong></td>
+                <td style="text-align: center;"><strong>3.3</strong></td>
+                <td style="text-align: center;">3.3</td>
+                <td style="text-align: center;">30.0</td>
+                <td style="text-align: center;"><strong>20.0</strong></td>
+                <td style="text-align: center;"><strong>3.3</strong></td>
+              </tr>
+              <tr>
+                <td style="padding-left: 1.5rem;"><em>w/ GPT-5</em></td>
+                <td style="text-align: center;">30</td>
+                <td style="text-align: center;">14</td>
+                <td style="text-align: center;"><strong>93.3</strong> <span style="color: #5c7cfa;">(56.7)</span></td>
+                <td style="text-align: center;">92.9 <span style="color: #5c7cfa;">(<strong style="color: #5c7cfa;">91.7</strong>)</span></td>
+                <td style="text-align: center;">43.3</td>
+                <td style="text-align: center;">0.0</td>
+                <td style="text-align: center;"><strong>10.0</strong></td>
+                <td style="text-align: center;"><strong>33.3</strong></td>
+                <td style="text-align: center;">10.0</td>
+                <td style="text-align: center;"><strong>3.3</strong></td>
+              </tr>
+              <!-- Multi-Apps Domain Header -->
+              <tr style="background-color: #e0e0e0;">
+                <td colspan="11" style="text-align: center; font-weight: bold; font-style: italic;">Multi-Apps</td>
+              </tr>
+              <!-- Claude 4.5 Haiku - Multi-Apps -->
+              <tr>
+                <td colspan="11" style="padding-left: 0.5rem;"><strong>Claude 4.5 Haiku</strong></td>
+              </tr>
+              <tr>
+                <td style="padding-left: 1.5rem;"><em>w/ Claude 4.5 Haiku</em></td>
+                <td rowspan="2" style="text-align: center; vertical-align: middle;">194</td>
+                <td rowspan="2" style="text-align: center; vertical-align: middle;">44</td>
+                <td style="text-align: center;">58.2</td>
+                <td style="text-align: center;"><strong>95.5</strong></td>
+                <td style="text-align: center;">41.2</td>
+                <td style="text-align: center;">2.1</td>
+                <td style="text-align: center;">13.9</td>
+                <td style="text-align: center;"><strong>33.0</strong></td>
+                <td style="text-align: center;"><strong>6.2</strong></td>
+                <td style="text-align: center;"><strong>3.6</strong></td>
+              </tr>
+              <tr>
+                <td style="padding-left: 1.5rem;"><em>w/ GPT-5</em></td>
+                <td style="text-align: center;"><strong>60.8</strong></td>
+                <td style="text-align: center;">81.8</td>
+                <td style="text-align: center;"><strong>38.1</strong></td>
+                <td style="text-align: center;"><strong>3.6</strong></td>
+                <td style="text-align: center;"><strong>18.6</strong></td>
+                <td style="text-align: center;">30.4</td>
+                <td style="text-align: center;"><strong>6.2</strong></td>
+                <td style="text-align: center;">3.1</td>
+              </tr>
+              <!-- Claude 4.5 Opus - Multi-Apps -->
+              <tr>
+                <td colspan="11" style="padding-left: 0.5rem;"><strong>Claude 4.5 Opus<sup>†</sup></strong></td>
+              </tr>
+              <tr>
+                <td style="padding-left: 1.5rem;"><em>w/ Claude 4.5 Haiku</em></td>
+                <td style="text-align: center;">30</td>
+                <td style="text-align: center;">18</td>
+                <td style="text-align: center;">80.0 <span style="color: #5c7cfa;">(66.7)</span></td>
+                <td style="text-align: center;">83.3 <span style="color: #5c7cfa;">(72.2)</span></td>
+                <td style="text-align: center;">33.3</td>
+                <td style="text-align: center;"><strong>3.3</strong></td>
+                <td style="text-align: center;">3.3</td>
+                <td style="text-align: center;">30.0</td>
+                <td style="text-align: center;"><strong>23.3</strong></td>
+                <td style="text-align: center;"><strong>6.7</strong></td>
+              </tr>
+              <tr>
+                <td style="padding-left: 1.5rem;"><em>w/ GPT-5</em></td>
+                <td style="text-align: center;">30</td>
+                <td style="text-align: center;">20</td>
+                <td style="text-align: center;"><strong>90.0</strong> <span style="color: #5c7cfa;">(<strong style="color: #5c7cfa;">80.0</strong>)</span></td>
+                <td style="text-align: center;"><strong>90.0</strong> <span style="color: #5c7cfa;">(<strong style="color: #5c7cfa;">75.0</strong>)</span></td>
+                <td style="text-align: center;"><strong>20.0</strong></td>
+                <td style="text-align: center;">0.0</td>
+                <td style="text-align: center;"><strong>13.3</strong></td>
+                <td style="text-align: center;"><strong>40.0</strong></td>
+                <td style="text-align: center;">20.0</td>
+                <td style="text-align: center;"><strong>6.7</strong></td>
+              </tr>
+            </tbody>
+          </table>
+      <p style="font-size: 13px; text-align: center; color: #666; margin-top: 0.5rem;">
+        <!-- Table caption goes here -->
+      </p>
+    </div>
+  </div>
+  
+  <!-- Transferability Results -->
+  <div class="container is-max-desktop" style="margin-top: 3rem;">
+    <div class="content has-text-centered">
+      <h2 class="title is-3">Transferability Results</h2>
+    </div>
+  </div>
+
+  <br>
+
+  <div class="container">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-two-thirds">
+        <div class="columns is-vcentered">
+          <!-- Text Column -->
+          <div class="column is-7">
+            <div class="content has-text-justified">
+              <p><strong>Experiment Setup</strong></p>
+              <p>We transfer 117 human-verified perturbations from Haiku (50) and Opus (67) to other target agents.</p>
+              <p>Each instruction is executed 3 times per agent, reporting the percentage of instructions eliciting unintended behavior in >=1 run.</p>
+
+              <p><strong>Results</strong></p>
+              <ul>
+                <li><strong>Significant transferability:</strong> Perturbations achieve elicitation success rates of 35.0%-53.8% across all target agents.</li>
+                <li><strong>Open-source robustness:</strong> EvoCUA-8B (35.0%) and EvoCUA-32B (37.6%) show the highest robustness, showing the progress of open-source for both capability and safety.</li>
+                <li><strong>Increased transfer from stronger source agents:</strong> Successful perturbations from Opus transfer more than those from Hiku.</li>
+              </ul>
+            </div>
+          </div>
+          <!-- Table Column -->
+          <div class="column is-5">
+        <div class="table-container">
+          <table class="table is-bordered is-striped is-hoverable is-fullwidth" style="font-size: 12px; width: 100%;">
+            <thead>
+              <tr>
+                <th rowspan="2" style="vertical-align: middle;">Target Agent</th>
+                <th colspan="2" style="text-align: center;">Source Agent</th>
+                <th rowspan="2" style="text-align: center; vertical-align: middle;">Overall</th>
+              </tr>
+              <tr>
+                <th style="text-align: center;">Claude 4.5 Haiku</th>
+                <th style="text-align: center;">Claude 4.5 Opus</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Open-Source CUAs Header -->
+              <tr style="background-color: #e0e0e0;">
+                <td colspan="4" style="text-align: center; font-weight: bold; font-style: italic;">Open-Source CUAs</td>
+              </tr>
+              <tr>
+                <td>EvoCUA-8B</td>
+                <td style="text-align: center;">20.0</td>
+                <td style="text-align: center;">50.7</td>
+                <td style="text-align: center;">37.6</td>
+              </tr>
+              <tr>
+                <td>EvoCUA-32B</td>
+                <td style="text-align: center;">24.0</td>
+                <td style="text-align: center;">43.3</td>
+                <td style="text-align: center;">35.0</td>
+              </tr>
+              <tr>
+                <td>OpenCUA-7B</td>
+                <td style="text-align: center;">42.0</td>
+                <td style="text-align: center;">50.7</td>
+                <td style="text-align: center;">47.0</td>
+              </tr>
+              <tr>
+                <td>OpenCUA-32B</td>
+                <td style="text-align: center;">42.0</td>
+                <td style="text-align: center;">44.8</td>
+                <td style="text-align: center;">43.6</td>
+              </tr>
+              <tr>
+                <td>OpenCUA-72B</td>
+                <td style="text-align: center;">50.0</td>
+                <td style="text-align: center;">56.7</td>
+                <td style="text-align: center;">53.8</td>
+              </tr>
+              <!-- Closed-Source CUAs Header -->
+              <tr style="background-color: #e0e0e0;">
+                <td colspan="4" style="text-align: center; font-weight: bold; font-style: italic;">Closed-Source CUAs</td>
+              </tr>
+              <tr>
+                <td>Claude 4.5 Sonnet</td>
+                <td style="text-align: center;">32.0</td>
+                <td style="text-align: center;">47.8</td>
+                <td style="text-align: center;">41.0</td>
+              </tr>
+              <tr>
+                <td>Operator</td>
+                <td style="text-align: center;">38.0</td>
+                <td style="text-align: center;">56.7</td>
+                <td style="text-align: center;">48.7</td>
+              </tr>
+            </tbody>
+          </table>
+          <p style="font-size: 12px; text-align: center; color: #666; margin-top: 0.5rem;">
+            <!-- Table caption goes here -->
+          </p>
+        </div>
+      </div>
         </div>
       </div>
     </div>
