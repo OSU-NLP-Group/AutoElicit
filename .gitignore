@@ -1,0 +1,11 @@
+/autoelicit/autoelicit-seed/
+.env
+/autoelicit/seed_generation/cache/
+/autoelicit/seed_generation/initial_states/
+/autoelicit/seed_generation/logs/
+evaluation_examples/
+results/
+autoelicit/seed_generation_logs/
+autoelicit/seed_evaluation_logs/
+autoelicit/perturbed_queries/
+utils/__pycache__/
