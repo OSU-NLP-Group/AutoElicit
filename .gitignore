@@ -12,3 +12,5 @@ utils/__pycache__/
 __pycache__/
 logs/
 cache/
+batch_scripts/batch_logs/
+batch_scripts/run_summary_logs/
