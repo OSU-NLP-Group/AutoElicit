@@ -37,9 +37,9 @@ Seed Query (filtered perturbed instruction)
 │     (max_iterations iterations)         │
 ├─────────────────────────────────────────┤
 │  1. Execute instruction on agent        │
-│  2. Capture trajectory                  │
-│  3. Evaluate trajectory for target      │
-│     behavior elicitation                │
+│  2. Summarize trajectory                │
+│  3. Evaluate trajectory for             │
+│     unintended behavior elicitation     │
 │  4. If score >= threshold: SUCCESS      │
 │  5. If score < threshold: REFINE        │
 └─────────────────────────────────────────┘
