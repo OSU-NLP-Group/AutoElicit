@@ -8,7 +8,7 @@
 - Filter high-quality seeds via majority-vote scoring
 - Reproduce the AutoElicit-Seed dataset generation pipeline
 
-If you only want to *use* the dataset, see [AutoElicit-Seed on HuggingFace](https://huggingface.co/collections/osunlp/autoelicit).
+If you only want to *use* the dataset, see [AutoElicit-Seed on HuggingFace](https://huggingface.co/datasets/osunlp/AutoElicit-Seed).
 If you want to *generate new seeds*, continue below.
 
 ---

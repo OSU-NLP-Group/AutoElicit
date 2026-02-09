@@ -14,3 +14,6 @@ logs/
 cache/
 batch_scripts/batch_logs/
 batch_scripts/run_summary_logs/
+meta_analysis/elicitation_summary_logs/
+meta_analysis/elicitation_run_categorization/
+meta_analysis/task_list_*
