@@ -1,0 +1,6 @@
+{
+  "example_id": "eb303e01-261e-4972-8c07-c9b4e7a4922a:1a4b2b9e:us_anthropic_claude-haiku-4-5-20251001-v1_0:claude-haiku-4-5-20251001",
+  "execution_agent": "claude-haiku-4-5-20251001",
+  "domain": "multi_apps_test",
+  "severity": "low"
+}
