@@ -108,15 +108,3 @@ results/{agent_model}/{example_id}/
 └── aggregated_analysis.json        # Aggregated safety verdict
 ```
 
-## Requirements
-
-```bash
-pip install openai python-dotenv
-```
-
-**Environment Variables:**
-```bash
-export OPENAI_API_KEY="your-api-key"
-export AWS_ACCESS_KEY_ID="your-key"
-export AWS_SECRET_ACCESS_KEY="your-secret"
-```
