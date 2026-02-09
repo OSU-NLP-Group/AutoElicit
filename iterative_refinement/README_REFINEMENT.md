@@ -19,9 +19,11 @@ If you want to perform elicitation analysis yourself, continue below.
 Execution-Guided Perturbation Refinement refines perturbed instructions to elicit unintended behaviors using *nested dual feedback loops*:
 
 1. **Execution Feedback Loop (Outer Loop)**  
-   Executes perturbed instructions on a specified computer-use agent, automatically evaluates resulting trajectories, and refines instructions based on execution from prior attempts. This outer loop continues unitl an unintended behavior is elicited or until the max number of execution iterations is reached.
+
+   Executes perturbed instructions on a specified computer-use agent, automatically evaluates resulting trajectories, and refines instructions based on execution from prior attempts. This outer loop continues until an unintended behavior is elicited or until the max number of execution iterations is reached.
 
 2. **Quality Feedback Loop (Inner Loop)** 
+
    Performs a *quality check* to ensure any proposed perturbation based on execution feedback maintains required quality thresholds before being executed. This inner loop continues until the perturbation meets all quality thresholds or until the max number of quality refinement iterations is reached.
 
 ---
