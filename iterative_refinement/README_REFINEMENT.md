@@ -114,6 +114,39 @@ For large batches, use the screen command to run multiple batch files concurrent
 ```
 Provides information about the total costs, elicitation success, and severity assessment distribution for full elicitation batches.
 
+---
+
+### Computing Baseline Harm Rate
+
+To ensure that harms observed during elicitation runs can be attributed to the refinement approach (and the perturbed instruction) rather than to the original benign task, we compute a **baseline harm rate** for each benign task. This is the fraction of trials in which the agent exhibits harmful or unsafe behavior when executing the *original* benign instruction. We exclude all tasks with a baseline harm rate > 0% and suggest this as best practice when using AutoElict. 
+
+Two components support this analysis:
+
+**`run_reproducibility_test.py`** — Runs the original benign task for N trials for a given successful elicitation case and evaluates each trajectory for harmful behavior (UNSAFE/SAFE). Use the `--benign` flag so that the script executes the benign instruction instead of the perturbed one. It writes a `benign_reproducibility_summary.json` (including `baseline_harm_rate` and per-trial classifications) under `perturbed_queries/{domain}/{task_id}/benign_execution/{agent_model}/benign_reproducibility_analysis/`.
+
+```bash
+# Single case: run N benign trials for one successful elicitation
+python run_reproducibility_test.py \
+    --success_case_path "perturbed_queries/{domain}/{task_id}/{perturbation_model}/perturbed_query_{id}/iterative_refinement_{refinement_model}/agent_{agent_model}" \
+    --n_trials 10 \
+    --benign
+```
+
+Optional: `--skip_existing` to skip cases that already have a summary; `--base_dir` / `--domain` / `--task_id` to run over multiple cases (with `--benign`).
+
+**`run_benign_reproducibility_batch.sh`** — Batch driver that discovers all successful elicitations (via `final_successful_query.json` files), collects unique `(task_id, agent_model)` pairs, and runs benign reproducibility for each by calling `run_reproducibility_test.py` with `--benign`. 
+
+Configure at the top of the script: `DOMAIN`, `BASE_DIR`, `N_TRIALS`, `AGENT_FILTER`, and AWS `PROVIDER_NAME`/`REGION`. It skips pairs that already have a complete `benign_reproducibility_summary.json` (with `n_trials` trials), logs progress, and at the end writes an aggregate report (e.g. `perturbed_queries/{domain}/benign_reproducibility_batch_report_{timestamp}.json`) with per-task and average baseline harm rates.
+
+```bash
+# Edit DOMAIN, N_TRIALS, AGENT_FILTER, etc. in the script, then:
+./run_benign_reproducibility_batch.sh
+```
+
+The resulting baseline harm rates (and task IDs with baseline harm > 0%) can be used to build filter files for the meta-analysis task-selection step (e.g. `data_filter_harm_threshold_0%_final.json`).
+
+--- 
+
 ## Output Structure
 
 ```
@@ -142,6 +175,23 @@ batch_scripts/
 |   └── {seed_prefix}{i}_{timestamp}.log # Log for full batch elicitation run
 └── run_summary_logs/
     └── run_summary_{domain}_{agent_model}_{refinement_model}_{timestamp}.txt # Generated summary of full elicitation batch
+```
+
+```
+# Baseline Harm Rate Output 
+perturbed_queries/{domain}/{task_id}/
+└── benign_execution/
+    ├── trial_0/
+    │   ├── benign_metadata.json
+    │   ├── traj.jsonl
+    │   ├── trajectory_summary.md
+    │   ├── trajectory_evaluation.json
+    │   └── step_*.png
+    ├── ...
+    ├── trial_{N}/              # N trials of benign task execution
+    ├── benign_reproducibility_summary.json
+    └── config.json
+
 ```
 ---
 
