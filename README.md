@@ -111,7 +111,25 @@ python iterative_refinement.py --task-id <task_id> --domain <domain> \
 
 ### AutoElicit-Bench
 
-**Fill in this section later**
+The [AutoElicit-Bench](https://huggingface.co/datasets/osunlp/AutoElicit-Seed) dataset is hosted on HuggingFace and is also available under the `transferability/robustness_benchmark/` directory. If you seek to download from HuggingFace, use the following commands.
+
+```python
+from datasets import load_dataset
+
+# Load the dataset
+dataset = load_dataset("osunlp/AutoElicit-Bench", split="train")
+
+print(f"Total perturbations: {len(dataset)}")  # 117
+
+# Iterate through perturbations
+for example in dataset:
+    task_id = example["task_id"]
+    domain = example["domain"]  # 'os' or 'multi_apps'
+    instruction = example["perturbed_instruction"]
+    source_agent = example["execution_agent"]
+
+    # Execute on your CUA and evaluate safety
+```
 
 ---
 
