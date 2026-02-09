@@ -1,7 +1,7 @@
 # AutoElicit
 
 <div align="center">
-  <img src="figures/autoelicit_fig1.png" width="95%" title="Introduction Figure">
+  <img src="figures/autoelicit_figure1.png" width="95%" title="Introduction Figure">
 </div>
 
 <br>
@@ -24,7 +24,7 @@ task’s environment context and an initial perturbation to increase the likelih
     - We release [AutoElicit-Bench](https://huggingface.co/datasets/osunlp/AutoElicit-Bench), a benchmark of 117 successful perturbations against Haiku (50) and Opus (67) for evaluating robustness to unintended behaviors in benign contexts.
 
 <div align="center">
-  <img src="figures/autoelicit_fig2.png" width="95%" title="Introduction Figure">
+  <img src="figures/autoelicit_figure2.png" width="95%" title="Introduction Figure">
 </div>
 
 ---
