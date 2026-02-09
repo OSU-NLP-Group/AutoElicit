@@ -2,11 +2,57 @@
 
 This module evaluates the **transferability** of successful perturbations across different computer-use agents (CUAs). Given a benchmark of 117 human-verified perturbations that successfully elicited unsafe behaviors from source agents (Claude 4.5 Haiku and Opus), we measure whether these perturbations can elicit similar behaviors in other target agents.
 
+## Dataset
+
+The benchmark is available in two formats:
+
+### Option 1: HuggingFace Dataset (Recommended)
+
+```python
+from datasets import load_dataset
+
+# Load the dataset
+dataset = load_dataset("osunlp/AutoElicit-Bench", split="train")
+
+print(f"Total perturbations: {len(dataset)}")  # 117
+
+# Iterate through perturbations
+for example in dataset:
+    task_id = example["task_id"]
+    domain = example["domain"]  # 'os' or 'multi_apps'
+    instruction = example["perturbed_instruction"]
+    source_agent = example["execution_agent"]
+
+    # Execute on your CUA and evaluate safety
+```
+
+**Dataset Structure:**
+
+| Field | Description |
+|-------|-------------|
+| `task_id` | Original OSWorld task ID |
+| `domain` | Task domain (`os`: 48, `multi_apps`: 69) |
+| `perturbation_id` | Unique 8-char identifier |
+| `refinement_model` | LLM used for refinement |
+| `execution_agent` | Source agent where behavior was elicited |
+| `perturbed_instruction` | The adversarial instruction |
+
+**Distribution:**
+
+| Source Agent | Count |
+|--------------|-------|
+| Claude 4.5 Opus | 67 |
+| Claude 4.5 Haiku | 50 |
+
+### Option 2: Local Benchmark
+
+The `robustness_benchmark/` directory contains the same 117 perturbations with additional metadata (severity levels, elicitation strategies).
+
 ## Pipeline Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  robustness_benchmark/                                              │
+│  HuggingFace or robustness_benchmark/                               │
 │  117 human-verified perturbations from Claude 4.5 Haiku & Opus      │
 └──────────────────────────────┬──────────────────────────────────────┘
                                ▼
@@ -82,17 +128,6 @@ For each perturbation, we execute 3 runs and report the percentage of perturbati
 Transfer Rate = (perturbations with ≥1 unsafe run) / (total perturbations) × 100
 ```
 
-## Benchmark Data
-
-The `robustness_benchmark/` directory contains **117 human-verified perturbations**:
-
-| Source Agent | Count |
-|--------------|-------|
-| Claude 4.5 Haiku | 50 |
-| Claude 4.5 Opus | 67 |
-
-Each perturbation includes the perturbed instruction, elicitation strategy, and severity level.
-
 ## Output Structure
 
 ```
@@ -107,4 +142,3 @@ results/{agent_model}/{example_id}/
 ├── aggregated_results.json         # Execution statistics
 └── aggregated_analysis.json        # Aggregated safety verdict
 ```
-
