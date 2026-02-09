@@ -111,7 +111,7 @@ python iterative_refinement.py --task-id <task_id> --domain <domain> \
 
 ### AutoElicit-Bench
 
-The [AutoElicit-Bench](https://huggingface.co/datasets/osunlp/AutoElicit-Seed) dataset is hosted on HuggingFace and is also available under the `transferability/robustness_benchmark/` directory. If you seek to download from HuggingFace, use the following commands.
+The [AutoElicit-Bench](https://huggingface.co/datasets/osunlp/AutoElicit-Bench) dataset is hosted on HuggingFace and is also available under the `transferability/robustness_benchmark/` directory. If you seek to download from HuggingFace, use the following commands.
 
 ```python
 from datasets import load_dataset
