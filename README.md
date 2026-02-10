@@ -191,4 +191,14 @@ To perform this analysis on additional target agents, follow the provided instru
 
 ## Citation
 
-**Fill in this section later**
+```
+@misc{jones2026benigninputsleadsevere,
+      title={When Benign Inputs Lead to Severe Harms: Eliciting Unsafe Unintended Behaviors of Computer-Use Agents}, 
+      author={Jaylen Jones and Zhehao Zhang and Yuting Ning and Eric Fosler-Lussier and Pierre-Luc St-Charles and Yoshua Bengio and Dawn Song and Yu Su and Huan Sun},
+      year={2026},
+      eprint={2602.08235},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2602.08235}, 
+}
+```
