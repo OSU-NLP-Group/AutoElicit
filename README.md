@@ -8,7 +8,7 @@
 
 <p align="center">
 [<a href="https://osu-nlp-group.github.io/AutoElicit/">Website</a>] •
-[<a href="">Paper</a>] •
+[<a href="https://arxiv.org/abs/2602.08235">Paper</a>] •
 [<a href="https://huggingface.co/collections/osunlp/autoelicit">Data</a>]
 </p>
 
