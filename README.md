@@ -30,7 +30,9 @@ task’s environment context and an initial perturbation to increase the likelih
 ---
 
 ## 📣 Updates
-- 2/9/2026: Paper, code, and dataset release.
+- **6/8/2026:** Released the camera-ready version on ArXiv, featuring large-scale elicitation analysis against Operator, expanded experiments against Claude 4.5 Opus, human annotation for false negative rate, and additional ablations & analyses validating the key components of the AutoElicit pipeline. 
+- **4/30/2026:** AutoElicit has been accepted to ICML '26!
+- **2/9/2026:** We've released our [paper](https://arxiv.org/abs/2602.08235v2), [project page](https://osu-nlp-group.github.io/AutoElicit/), and [datasets](https://huggingface.co/collections/osunlp/autoelicit). Check it out!
 
 ---
 
