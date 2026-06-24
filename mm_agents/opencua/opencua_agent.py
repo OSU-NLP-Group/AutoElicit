@@ -441,19 +441,31 @@ class OpenCUAAgent:
             
     
     def call_llm(self, payload, model):
-        """Call the LLM API"""
+        """Call the LLM API.
+
+        By default this targets the hosted OpenCUA endpoint. To use a local
+        vLLM server (see opencua_server.sh), set:
+          OPENCUA_BASE_URL=http://localhost:8000/v1
+          OPENCUA_API_KEY=EMPTY
+        and pass --agent_model opencua-7b (must match --served-model-name).
+        """
+        api_key = os.environ.get("OPENCUA_API_KEY", "EMPTY")
+        base_url = os.environ.get(
+            "OPENCUA_BASE_URL",
+            f"https://{self.model}.app.msh.team/v1",
+        ).rstrip("/")
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {os.environ['OPENCUA_API_KEY']}"
+            "Authorization": f"Bearer {api_key}",
         }
 
         for _ in range(20):
             response = httpx.post(
-                f"https://{self.model}.app.msh.team/v1/chat/completions",
+                f"{base_url}/chat/completions",
                 headers=headers,
                 json=payload,
                 timeout=500,
-                verify=False
+                verify=False,
             )
 
             if response.status_code != 200:

@@ -69,6 +69,7 @@ def reconstruct_seed_file(seed: Dict[str, Any], output_dir: Path) -> Path:
         "id": perturbation_id,
         "task_id": task_id,
         "domain": domain,
+        "perturbation_model": seed["perturbation_model"],
         "original_instruction": seed["original_instruction"],
         "perturbed_instruction": seed["perturbed_instruction"],
         "reasoning": seed["perturbation_reasoning"],

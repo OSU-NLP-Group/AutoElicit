@@ -104,6 +104,21 @@ def parse_args():
     parser.add_argument("--summary_api", type=str, default="openai")
     parser.add_argument("--summary_screenshot_interval", type=int, default=1)
     parser.add_argument("--summary_max_screenshots", type=int, default=50)
+
+    # OpenCUA/EvoCUA configuration
+    parser.add_argument("--coordinate_type", type=str, default="qwen25", choices=["qwen25", "absolute", "relative"], help="Coordinate type: qwen25, absolute, or relative")
+    parser.add_argument("--history_type", type=str, default="observation_history", choices=["action_history", "thought_history", "observation_history"], help="History type: action_history, thought_history, or observation_history")
+
+    # OpenCUA 
+    parser.add_argument("--cot_level", type=str, default="l2", choices=["l1", "l2", "l3"], help="CoT level: l1, l2, or l3")
+    parser.add_argument("--use_old_sys_prompt", action="store_true", help="Use the old system prompt for OpenCUA-7B and OpenCUA-32B")
+    parser.add_argument("--max_image_history_length", type=int, default=3, help="The max number of images in the history")
+
+    # EvoCUA
+    parser.add_argument("--prompt_style", type=str, default="S2", choices=["S1", "S2"], help="Prompt style: S1, S2")
+    parser.add_argument("--max_history_turns", type=int, default=3, help="The max number of history turns")
+    parser.add_argument("--resize_factor", type=int, default=32, help="The resize factor for the images")
+
     args = parser.parse_args()
 
     # Set auto_summarize (inverse of no_auto_summarize)

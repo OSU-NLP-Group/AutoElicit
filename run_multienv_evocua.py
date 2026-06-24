@@ -1,7 +1,49 @@
-"""Script to run end-to-end evaluation on the benchmark.
-Utils and basic architecture credit to https://github.com/web-arena-x/webarena/blob/main/run.py.
+"""
+    Script to run EvoCUA native agent model on OSWorld tasks.
+
+    export AWS_ACCESS_KEY_ID="xx"
+    export AWS_SECRET_ACCESS_KEY="xx"
+    export AWS_REGION="xx"
+    export AWS_SECURITY_GROUP_ID="xx"
+    export AWS_SUBNET_ID="xx"
+    export OPENAI_API_KEY="xxxx"
+    export OPENAI_BASE_URL="xxxx"
+
+    Example Usage (S2):
+        python3 run_multienv_evocua.py \
+            --headless \
+            --provider_name aws \
+            --observation_type screenshot \
+            --model EvoCUA-S2 \
+            --result_dir ./evocua_s2 \
+            --test_all_meta_path evaluation_examples/test_nogdrive.json \
+            --max_steps 50 \
+            --num_envs 30 \
+            --temperature 0.01 \
+            --max_history_turns 4 \
+            --coordinate_type relative \
+            --resize_factor 32 \
+            --prompt_style S2
+
+    
+    Example Usage (S1):
+        python3 run_multienv_evocua.py \
+            --headless \
+            --provider_name aws \
+            --observation_type screenshot \
+            --model EvoCUA-S1 \
+            --result_dir ./evocua_s1 \
+            --test_all_meta_path evaluation_examples/test_nogdrive.json \
+            --max_steps 50 \
+            --num_envs 30 \
+            --max_history_turns 3 \
+            --coordinate_type qwen25 \
+            --max_tokens 10240 \
+            --resize_factor 28 \
+            --prompt_style S1
 """
 
+from __future__ import annotations
 import argparse
 import datetime
 import json
@@ -11,25 +53,61 @@ import sys
 import signal
 import time
 from typing import List
-from multiprocessing import Process, Manager, current_process
+from multiprocessing import Process, Manager, Queue
+from multiprocessing import current_process
 import lib_run_single
-from lib_results_logger import log_task_error
 from desktop_env.desktop_env import DesktopEnv
-from mm_agents.anthropic import AnthropicAgent
+from mm_agents.evocua.evocua_agent import EvoCUAAgent
 
 # Global variables for signal handling
 active_environments = []
 processes = []
 is_terminating = False
 
-# .env
-from dotenv import load_dotenv
-load_dotenv()
 
-#  Logger Configs {{{ #
+# Thread-local storage for task context (works per-process in multiprocessing)
+import threading
+_task_context = threading.local()
+
+def get_task_context():
+    """Get current task context from thread-local storage."""
+    return getattr(_task_context, 'context', {'domain': None, 'example_id': None})
+
+def set_task_context(domain: str, example_id: str):
+    """Set current task context in thread-local storage."""
+    _task_context.context = {'domain': domain, 'example_id': example_id}
+
+def clear_task_context():
+    """Clear current task context."""
+    if hasattr(_task_context, 'context'):
+        delattr(_task_context, 'context')
+
+class TaskContextFilter(logging.Filter):
+    """Filter to add domain and example_id to log records."""
+    def filter(self, record):
+        ctx = get_task_context()
+        domain = ctx.get('domain')
+        example_id = ctx.get('example_id')
+        if domain and example_id:
+            record.domain = domain
+            record.example_id = example_id
+            # Add prefix to message
+            if hasattr(record, 'msg') and isinstance(record.msg, str):
+                if not record.msg.startswith(f"[{domain}/{example_id}]"):
+                    record.msg = f"[{domain}/{example_id}] {record.msg}"
+        else:
+            record.domain = domain or "N/A"
+            record.example_id = example_id or "N/A"
+        return True
+
+# load the environment variables from .env file
+if os.path.exists(".env"):
+    from dotenv import load_dotenv
+    load_dotenv()
+
 def config() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run end-to-end evaluation on the benchmark"
+        description="Run end-to-end evaluation with EvoCUAAgent"
     )
 
     # environment config
@@ -38,13 +116,52 @@ def config() -> argparse.Namespace:
         "--headless", action="store_true", help="Run in headless machine"
     )
     parser.add_argument(
-        "--action_space", type=str, default="claude_computer_use", help="Action type"
+        "--action_space", type=str, default="pyautogui", help="Action type"
     )
     parser.add_argument(
         "--observation_type",
         choices=["screenshot", "a11y_tree", "screenshot_a11y_tree", "som"],
-        default="a11y_tree",
+        default="screenshot",
         help="Observation type",
+    )
+    parser.add_argument("--sleep_after_execution", type=float, default=5.0)
+    parser.add_argument("--max_steps", type=int, default=50)
+    
+    # evaluation config
+    parser.add_argument(
+        "--test_config_base_dir", type=str, default="evaluation_examples"
+    )
+
+    # lm config
+    parser.add_argument("--model", type=str, default="evocua", help="Model name.")
+    parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument("--top_p", type=float, default=0.9)
+    parser.add_argument("--max_tokens", type=int, default=32768)
+    parser.add_argument("--stop_token", type=str, default=None)
+
+    parser.add_argument("--prompt_style", type=str, default="S2", choices=["S1", "S2"], help="Prompt style: 'S1' (structured reasoning) or 'S2' (tool calling)")
+    parser.add_argument("--history_type", type=str, default="action_history", help="[S1] History type")
+    parser.add_argument("--coordinate_type", type=str, default="relative", help="Coordinate type: relative, absolute, qwen25")
+    parser.add_argument("--password", type=str, default="osworld-public-evaluation", help="VM Password")
+    
+    # Unified History Parameter
+    parser.add_argument("--max_history_turns", type=int, default=3, help="Number of history turns to include")
+    parser.add_argument("--resize_factor", type=int, default=32, help="Image resize factor (S1: 28, S2: 32)")
+    
+    # example config
+    parser.add_argument("--domain", type=str, default="all")
+    parser.add_argument(
+        "--test_all_meta_path", type=str, default="evaluation_examples/test_nogdrive.json"
+    )
+
+    # logging related
+    parser.add_argument("--result_dir", type=str, default="./results")
+    parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to run in parallel")  
+    parser.add_argument("--log_level", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], 
+                       default='INFO', help="Set the logging level")
+    # aws config
+    parser.add_argument(
+        "--region", type=str, default="us-east-1", help="AWS region for the VM"
     )
     parser.add_argument(
         "--provider_name", type=str, default="aws", choices=["aws", "virtualbox", "vmware", "docker", "azure"], help="Provider name"
@@ -58,84 +175,11 @@ def config() -> argparse.Namespace:
     parser.add_argument(
         "--screen_height", type=int, default=1080, help="Screen height"
     )
-    parser.add_argument("--sleep_after_execution", type=float, default=0.0)
-    parser.add_argument("--max_steps", type=int, default=15)
-
-    # agent config
-    parser.add_argument("--max_trajectory_length", type=int, default=3)
-    parser.add_argument(
-        "--test_config_base_dir", type=str, default="evaluation_examples"
-    )
-
-    # lm config
-    parser.add_argument("--model", type=str, default="")
-    parser.add_argument("--temperature", type=float, default=None)
-    parser.add_argument("--top_p", type=float, default=None)
-    parser.add_argument("--max_tokens", type=int, default=3000)
-    parser.add_argument("--stop_token", type=str, default=None)
-    
-    # thinking mode config
-    parser.add_argument("--no-thinking", action="store_true", 
-                       help="Disable thinking mode (no scratchpad)")
-    parser.add_argument("--use-isp", action="store_true", 
-                       help="Use interleaved scratchpad (ISP) mode")
-
-    # example config
-    parser.add_argument("--domain", type=str, default="all")
-    parser.add_argument(
-        "--test_all_meta_path", type=str, default="evaluation_examples/test_all.json"
-    )
-    parser.add_argument(
-        "--specific_task_id", type=str, default=None, 
-        help="Run only a specific task ID (overrides domain filtering)"
-    )
-
-    # logging related
-    parser.add_argument("--result_dir", type=str, default="./results")
-    parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to run in parallel")
-    parser.add_argument("--log_level", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], 
-                       default='INFO', help="Set the logging level")
-
-    # aws config
-    parser.add_argument(
-        "--region", type=str, default="us-east-1", help="AWS region for the VM"
-    )
     
     args = parser.parse_args()
     return args
 
-args = config()  # Get command line arguments first
-
-# Validate that model is specified to prevent accidental usage with empty model
-if not args.model or args.model.strip() == "":
-    print("ERROR: Model must be specified. Use --model <model_name>")
-    print("Example: --model claude-sonnet-4-5-20250929")
-    sys.exit(1)
-
-# Validate model support before proceeding
-from mm_agents.anthropic.utils import validate_model_support
-
-# Pass same temperature/top_p and thinking parameters as will be used by the agent
-validation_kwargs = {}
-if args.temperature is not None:
-    validation_kwargs['temperature'] = args.temperature
-if args.top_p is not None:
-    validation_kwargs['top_p'] = args.top_p
-validation_kwargs['no_thinking'] = args.no_thinking
-validation_kwargs['use_isp'] = args.use_isp
-
-# if not validate_model_support(args.model, **validation_kwargs): #TODO: Adjust this to use AnthropicBedrock API
-#     print(f"\n💥 Model '{args.model}' api sample failed")
-#     sys.exit(1)
-
-# Validate thinking mode options are mutually exclusive
-if args.no_thinking and args.use_isp:
-    print("ERROR: --no-thinking and --use-isp are mutually exclusive")
-    print("Choose one of:")
-    print("  (default): Regular scratchpad mode")
-    print("  --no-thinking: Disable thinking/scratchpad")
-    print("  --use-isp: Use interleaved scratchpad (ISP)")
-    sys.exit(1)
+args = config()
 
 logger = logging.getLogger()
 log_level = getattr(logging, args.log_level.upper())
@@ -163,86 +207,59 @@ file_handler.setFormatter(formatter)
 debug_handler.setFormatter(formatter)
 stdout_handler.setFormatter(formatter)
 
+# Add task context filter to all handlers
+task_filter = TaskContextFilter()
+file_handler.addFilter(task_filter)
+debug_handler.addFilter(task_filter)
+stdout_handler.addFilter(task_filter)
+
 stdout_handler.addFilter(logging.Filter("desktopenv"))
 
 logger.addHandler(file_handler)
 logger.addHandler(debug_handler)
 logger.addHandler(stdout_handler)
-#  }}} Logger Configs #
 
 logger = logging.getLogger("desktopenv.experiment")
 
 
 def distribute_tasks(test_all_meta: dict) -> List[tuple]:
-    """Distribute tasks evenly across environments."""
-    # Flatten the tasks into a single list
     all_tasks = []
     for domain, examples in test_all_meta.items():
         for example_id in examples:
             all_tasks.append((domain, example_id))
-    
     return all_tasks
 
 
-def process_signal_handler(signum, frame, env_idx):
-    """Signal handler for child processes to gracefully shut down their environments."""
-    logger.info(f"Process {env_idx + 1} received signal {signum}. Shutting down...")
-    
-    # Get the active_environments from the caller's frame
-    local_vars = frame.f_locals
-    active_environments = local_vars.get('active_environments', [])
-    
-    # Close environment in the current process context
-    for env in active_environments:
-        if env is not None:
-            try:
-                logger.info(f"Process {env_idx + 1} closing environment...")
-                env.close()
-                logger.info(f"Process {env_idx + 1} environment closed successfully")
-            except Exception as e:
-                logger.error(f"Process {env_idx + 1} error closing environment: {e}")
-    
-    logger.info(f"Process {env_idx + 1} shutdown complete. Exiting.")
-    sys.exit(0)
-
-
-def run_env_tasks(task_queue, args, shared_scores):
-    """Run tasks for a single environment."""
+def run_env_tasks(task_queue: Queue, args: argparse.Namespace, shared_scores: list):
     active_environments = []
     env = None
     try:
-        from desktop_env.providers.aws.manager import IMAGE_ID_MAP
         REGION = args.region
         screen_size = (args.screen_width, args.screen_height)
-        ami_id = IMAGE_ID_MAP[REGION].get(screen_size, IMAGE_ID_MAP[REGION][(1920, 1080)])
+        
+        # Determine snapshot based on provider
+        snapshot_name = "init_state"
+        if args.provider_name == "aws":
+            from desktop_env.providers.aws.manager import IMAGE_ID_MAP
+            ami_id = IMAGE_ID_MAP[REGION].get(screen_size, IMAGE_ID_MAP[REGION].get((1920, 1080)))
+            snapshot_name = ami_id
+
         env = DesktopEnv(
             path_to_vm=args.path_to_vm,
             action_space=args.action_space,
             provider_name=args.provider_name,
             region=REGION,
-            snapshot_name=ami_id,
+            snapshot_name=snapshot_name,
             screen_size=screen_size,
             headless=args.headless,
             os_type="Ubuntu",
             require_a11y_tree=args.observation_type in ["a11y_tree", "screenshot_a11y_tree", "som"],
-            enable_proxy=False,
+            enable_proxy=True,
             client_password=args.client_password
         )
+
         active_environments.append(env)
-        agent = AnthropicAgent(
-            env=env,
-            model=args.model,
-            max_tokens=args.max_tokens,
-            top_p=args.top_p,
-            temperature=args.temperature,
-            action_space=args.action_space,
-            observation_type=args.observation_type,
-            max_trajectory_length=args.max_trajectory_length,
-            provider_name=args.provider_name,
-            screen_size=(args.screen_width, args.screen_height),
-            no_thinking=getattr(args, 'no_thinking', False),
-            use_isp=getattr(args, 'use_isp', False),
-        )
+        
         logger.info(f"Process {current_process().name} started.")
         while True:
             try:
@@ -250,6 +267,7 @@ def run_env_tasks(task_queue, args, shared_scores):
             except Exception:
                 break
             domain, example_id = item
+            set_task_context(domain, example_id)
             try:
                 config_file = os.path.join(
                     args.test_config_base_dir, f"examples/{domain}/{example_id}.json"
@@ -268,8 +286,26 @@ def run_env_tasks(task_queue, args, shared_scores):
                     example_id,
                 )
                 os.makedirs(example_result_dir, exist_ok=True)
+                
+                # Initialize EvoCUAAgent
+                agent = EvoCUAAgent(
+                    model=args.model,
+                    max_tokens=args.max_tokens,
+                    top_p=args.top_p,
+                    temperature=args.temperature,
+                    action_space=args.action_space,
+                    observation_type=args.observation_type,
+                    max_steps=args.max_steps,
+                    prompt_style=args.prompt_style,
+                    max_history_turns=args.max_history_turns,
+                    screen_size=(args.screen_width, args.screen_height),
+                    coordinate_type=args.coordinate_type,
+                    password=args.password,
+                    resize_factor=args.resize_factor,
+                )
+                
                 try:
-                    lib_run_single.run_single_example(
+                    lib_run_single.run_single_example_evocua(
                         agent,
                         env,
                         example,
@@ -284,30 +320,22 @@ def run_env_tasks(task_queue, args, shared_scores):
                     logger.error(f"Exception in {current_process().name} {domain}/{example_id}: {e}")
                     logger.error(traceback.format_exc())
                     
-                    # Log error to results.json
-                    try:
-                        example = {"id": example_id}  # Create minimal example dict for error logging
-                        log_task_error(example, str(e), example_result_dir, args)
-                    except Exception as log_e:
-                        logger.error(f"Failed to log error to results.json: {log_e}")
-                    
                     try:
                         env.controller.end_recording(
                             os.path.join(example_result_dir, "recording.mp4")
                         )
                     except Exception as rec_e:
                         logger.error(f"Failed to end recording: {rec_e}")
+
                     with open(os.path.join(example_result_dir, "traj.jsonl"), "a") as f:
-                        f.write(
-                            json.dumps(
-                                {"Error": f"{domain}/{example_id} - {e}"}
-                            )
-                        )
+                        f.write(json.dumps({"Error": f"{domain}/{example_id} - {e}"}))
                         f.write("\n")
             except Exception as e:
                 logger.error(f"Task-level error in {current_process().name}: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
+            finally:
+                clear_task_context()
     except Exception as e:
         logger.error(f"Process-level error in {current_process().name}: {e}")
         import traceback
@@ -326,14 +354,12 @@ def signal_handler(signum, frame):
     """Handle termination signals (SIGINT, SIGTERM) to gracefully shutdown environments."""
     global is_terminating, active_environments, processes
     
-    # Avoid duplicate handling
     if is_terminating:
         return
     
     is_terminating = True
     logger.info(f"Received signal {signum}. Gracefully shutting down...")
     
-    # Close all registered environments in the main process
     for env in active_environments:
         try:
             logger.info(f"Closing environment...")
@@ -342,7 +368,6 @@ def signal_handler(signum, frame):
         except Exception as e:
             logger.error(f"Error closing environment: {e}")
     
-    # Send termination signal to all child processes first
     for p in processes:
         if p.is_alive():
             try:
@@ -351,10 +376,8 @@ def signal_handler(signum, frame):
             except Exception as e:
                 logger.error(f"Error sending termination signal to process: {e}")
     
-    # Allow a short time for processes to handle their own cleanup
     time.sleep(1)
     
-    # Forcefully terminate any processes that didn't exit
     for p in processes:
         if p.is_alive():
             try:
@@ -452,7 +475,6 @@ def get_unfinished(
                 example_path = os.path.join(domain_path, example_id)
                 if os.path.isdir(example_path):
                     if "result.txt" not in os.listdir(example_path):
-                        # empty all files under example_id
                         for file in os.listdir(example_path):
                             os.remove(os.path.join(example_path, file))
                     else:
@@ -485,7 +507,6 @@ def get_result(action_space, use_model, observation_type, result_dir, total_file
                 example_path = os.path.join(domain_path, example_id)
                 if os.path.isdir(example_path):
                     if "result.txt" in os.listdir(example_path):
-                        # empty all files under example_id
                         try:
                             all_result.append(
                                 float(
@@ -506,17 +527,15 @@ def get_result(action_space, use_model, observation_type, result_dir, total_file
 
 
 if __name__ == "__main__":
-    ####### The complete version of the list of examples #######
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
     
-    # Register signal handlers for graceful termination
-    signal.signal(signal.SIGINT, signal_handler)  # Handle Ctrl+C
-    signal.signal(signal.SIGTERM, signal_handler)  # Handle termination signal
+    # Register signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     
     try:
-        # args already defined globally above
+        args = config()
         
-        # save args to json in result_dir/action_space/observation_type/model/args.json
         path_to_args = os.path.join(
             args.result_dir,
             args.action_space,
@@ -531,28 +550,7 @@ if __name__ == "__main__":
         with open(args.test_all_meta_path, "r", encoding="utf-8") as f:
             test_all_meta = json.load(f)
 
-        # Filter for specific task ID if provided
-        if args.specific_task_id:
-            logger.info(f"Filtering for specific task ID: {args.specific_task_id}")
-            filtered_meta = {}
-            task_found = False
-            
-            for domain, task_ids in test_all_meta.items():
-                for task_id in task_ids:
-                    if task_id == args.specific_task_id:
-                        filtered_meta[domain] = [task_id]
-                        task_found = True
-                        logger.info(f"Found task {args.specific_task_id} in domain: {domain}")
-                        break
-                if task_found:
-                    break
-            
-            if not task_found:
-                logger.error(f"Task ID {args.specific_task_id} not found in test file!")
-                sys.exit(1)
-                
-            test_all_meta = filtered_meta
-        elif args.domain != "all":
+        if args.domain != "all":
             test_all_meta = {args.domain: test_all_meta[args.domain]}
 
         test_file_list = get_unfinished(
@@ -577,41 +575,30 @@ if __name__ == "__main__":
         test(args, test_file_list)
     except KeyboardInterrupt:
         logger.info("Main process received KeyboardInterrupt.")
-        # Signal handler will take care of cleanup
     except Exception as e:
         logger.error(f"Unexpected error in main process: {e}", exc_info=True)
-        # Also trigger cleanup for unhandled exceptions
         signal_handler(signal.SIGTERM, None)
     finally:
-        # Final cleanup in case any environments or processes remain
         logger.info("Main process final cleanup...")
         for env in active_environments:
             if env is not None:
                 try:
-                    logger.info(f"Closing environment in final cleanup...")
+                    logger.info("Closing environment in final cleanup...")
                     env.close()
-                    logger.info(f"Environment closed successfully in final cleanup")
                 except Exception as e:
                     logger.error(f"Error during final environment cleanup: {e}")
         
-        # First try gentle termination
         for p in processes:
             if p is not None and p.is_alive():
                 try:
-                    logger.info(f"Terminating process {p.name}...")
                     p.terminate()
                 except Exception as e:
                     logger.error(f"Error terminating process: {e}")
         
-        # Wait a moment for processes to terminate
         time.sleep(1)
-        
-        # Then force kill if needed
         for p in processes:
             if p is not None and p.is_alive():
                 try:
-                    logger.info(f"Force killing process {p.name}...")
                     os.kill(p.pid, signal.SIGKILL)
-                    logger.info(f"Process {p.name} force killed")
                 except Exception as e:
                     logger.error(f"Error force killing process: {e}")

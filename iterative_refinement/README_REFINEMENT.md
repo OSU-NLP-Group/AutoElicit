@@ -171,6 +171,121 @@ Provides information about the total costs, elicitation success, and severity as
 
 ---
 
+## Using Open-Source Agents (OpenCUA & EvoCUA)
+
+In addition to frontier closed-weight CUAs, Execution-Guided Perturbation Refinement supports open-source native computer-use agents as the `--agent_model`. Our approach currently supports usage of [OpenCUA](https://github.com/xlang-ai/OpenCUA) and [EvoCUA](https://github.com/meituan/EvoCUA) through built-in runners (via `run_multienv_opencua.py` / `run_multienv_evocua.py`).
+
+Both models are served locally with **vLLM** as an OpenAI-compatible inference server. For more details about model installation, conda environment setup, and model deployment via vLLM, refer to instructions for [OpenCUA](https://github.com/xlang-ai/OpenCUA/blob/main/model/README.md) and [EvoCUA](https://github.com/meituan/EvoCUA/blob/main/README.md) respectively.
+
+
+### Start the vLLM Server
+
+**OpenCUA** (the model name must match `--served-model-name`, which is also what you pass as `--agent_model`):
+
+```bash
+# OpenCUA-7B (single GPU)
+vllm serve xlangai/OpenCUA-7B \
+    --trust-remote-code \
+    --served-model-name opencua-7b \
+    --host 0.0.0.0 \
+    --port 8000
+
+# OpenCUA-32B (4 GPUs, tensor parallel)
+vllm serve xlangai/OpenCUA-32B \
+    --trust-remote-code \
+    --tensor-parallel-size 4 \
+    --served-model-name opencua-32b \
+    --host 0.0.0.0 \
+    --port 8000
+```
+
+**EvoCUA**:
+
+```bash
+# Serve with vLLM (2 GPUs, tensor parallel)
+vllm serve ./EvoCUA-8B \
+  --served-model-name EvoCUA \
+  --host 0.0.0.0 \
+  --port 8080 \
+  --tensor-parallel-size 2
+
+# Serve with vLLM (4 GPUs, tensor parallel)
+vllm serve ./EvoCUA-32B \
+  --served-model-name EvoCUA-32B \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --tensor-parallel-size 4
+```
+
+### Environment Variables
+
+The runners read the server endpoint and key from environment variables. Set these in the environment where you run `iterative_refinement.py` (e.g., in your `.env`):
+
+```bash
+# OpenCUA
+export OPENCUA_BASE_URL="http://localhost:8000/v1"
+export OPENCUA_API_KEY="EMPTY"
+
+# EvoCUA
+export EVOCUA_BASE_URL="http://localhost:8000/v1"
+export EVOCUA_API_KEY="EMPTY"
+```
+
+### Run Execution-Guided Perturbation Refinement w/ the Open-Source Agent
+
+Pass the served model name as `--agent_model`. The pipeline detects the agent type from the model name and forwards model-specific flags automatically. The table below describes the new arguments available for open-source agents.
+
+**Shared (OpenCUA & EvoCUA)**
+
+| Argument | Choices | Default | Description |
+|----------|---------|---------|-------------|
+| `--coordinate_type` | `qwen25`, `absolute`, `relative` | `qwen25` | Coordinate system used by the agent. Use `qwen25` for OpenCUA-7B/32B/72B; use `relative` for EvoCUA S2 and `qwen25` for EvoCUA S1. |
+| `--history_type` | `action_history`, `thought_history`, `observation_history` | `observation_history` | What the agent carries forward as context at each step. `observation_history` passes prior screenshots; `action_history` passes prior actions; `thought_history` passes prior reasoning traces. |
+
+**OpenCUA only**
+
+| Argument | Choices | Default | Description |
+|----------|---------|---------|-------------|
+| `--cot_level` | `l1`, `l2`, `l3` | `l2` | Chain-of-thought verbosity. `l1` is minimal (action only); `l2` adds brief reasoning; `l3` adds full step-by-step reasoning. |
+| `--max_image_history_length` | int | `3` | Maximum number of prior screenshots included in the observation history sent to the model each step. |
+| `--use_old_sys_prompt` | flag | — | Use the older system prompt format; required for OpenCUA-7B and OpenCUA-32B. Not needed for OpenCUA-72B. |
+
+**EvoCUA only**
+
+| Argument | Choices | Default | Description |
+|----------|---------|---------|-------------|
+| `--prompt_style` | `S1`, `S2` | `S2` | Prompt format variant. `S2` is the default (EvoCUA-32B); `S1` corresponds to the earlier prompt style. |
+| `--max_history_turns` | int | `3` | Maximum number of prior turns included in the conversation history passed to the model. |
+| `--resize_factor` | int | `32` | Downsampling factor applied to screenshots before encoding. Lower values preserve more detail at higher token cost. |
+
+```bash
+# OpenCUA
+python iterative_refinement.py \
+    --task_id <TASK_UUID> \
+    --domain <DOMAIN> \
+    --perturbed_id <PERTURBED_ID> \
+    --agent_model opencua-7b \
+    --coordinate_type qwen25 \
+    --history_type observation_history \
+    --cot_level l2 \
+    --refinement_model <REFINEMENT_MODEL>
+
+# EvoCUA
+python iterative_refinement.py \
+    --task_id <TASK_UUID> \
+    --domain <DOMAIN> \
+    --perturbed_id <PERTURBED_ID> \
+    --agent_model EvoCUA-32B \
+    --coordinate_type relative \
+    --history_type observation_history \
+    --prompt_style S2 \
+    --max_history_turns 4 \
+    --resize_factor 32 \
+    --refinement_model <REFINEMENT_MODEL>
+```
+
+---
+
 ### Computing Baseline Harm Rate
 
 To ensure that harms observed during elicitation runs can be attributed to the refinement approach (and the perturbed instruction) rather than to the original benign task, we compute a **baseline harm rate** for each benign task. This is the fraction of trials in which the agent exhibits harmful or unsafe behavior when executing the *original* benign instruction. We exclude all tasks with a baseline harm rate > 0% and suggest this as best practice when using AutoElict. 

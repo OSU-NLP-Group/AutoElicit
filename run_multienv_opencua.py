@@ -1,7 +1,41 @@
-"""Script to run end-to-end evaluation on the benchmark.
-Utils and basic architecture credit to https://github.com/web-arena-x/webarena/blob/main/run.py.
+"""
+    This is the script to run OpenCUA agents on OSWorld tasks using AWS provider.
+
+    You should first host the OpenCUA model on your local machine or a server.
+
+    Command for OpenCUA-72B:
+    ```
+        python run_multienv_opencua.py \
+            --headless \
+            --observation_type screenshot \
+            --model OpenCUA-72B \
+            --result_dir ./results\
+            --test_all_meta_path evaluation_examples/test_nogdrive.json \
+            --max_steps 100 \
+            --num_envs 30  \
+            --coordinate_type qwen25 
+
+    ```
+
+
+    Command for OpenCUA-7B and OpenCUA-32B:
+    ```
+        python run_multienv_opencua.py \
+            --headless \
+            --observation_type screenshot \
+            --model OpenCUA-32B \
+            --result_dir ./results\
+            --test_all_meta_path evaluation_examples/test_nogdrive.json \
+            --max_steps 100 \
+            --num_envs 30  \
+            --coordinate_type qwen25 \
+            --use_old_sys_prompt
+
+    ```
+
 """
 
+from __future__ import annotations
 import argparse
 import datetime
 import json
@@ -11,22 +45,23 @@ import sys
 import signal
 import time
 from typing import List
-from multiprocessing import Process, Manager, current_process
+from multiprocessing import Process, Manager
+from multiprocessing import current_process
 import lib_run_single
-from lib_results_logger import log_task_error
 from desktop_env.desktop_env import DesktopEnv
-from mm_agents.anthropic import AnthropicAgent
+from mm_agents.opencua import OpenCUAAgent
 
 # Global variables for signal handling
 active_environments = []
 processes = []
 is_terminating = False
 
-# .env
-from dotenv import load_dotenv
-load_dotenv()
+# load the environment variables from .env file
+if os.path.exists(".env"):
+    from dotenv import load_dotenv
+    load_dotenv()
 
-#  Logger Configs {{{ #
+#  Logger Configs 
 def config() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run end-to-end evaluation on the benchmark"
@@ -38,13 +73,50 @@ def config() -> argparse.Namespace:
         "--headless", action="store_true", help="Run in headless machine"
     )
     parser.add_argument(
-        "--action_space", type=str, default="claude_computer_use", help="Action type"
+        "--action_space", type=str, default="pyautogui", help="Action type"
     )
     parser.add_argument(
         "--observation_type",
         choices=["screenshot", "a11y_tree", "screenshot_a11y_tree", "som"],
-        default="a11y_tree",
+        default="screenshot",
         help="Observation type",
+    )
+    parser.add_argument("--sleep_after_execution", type=float, default=5.0)
+    parser.add_argument("--max_steps", type=int, default=100)
+    
+    # evaluation config
+    parser.add_argument(
+        "--test_config_base_dir", type=str, default="evaluation_examples"
+    )
+
+    # lm config
+    parser.add_argument("--model", type=str, default=None)
+    parser.add_argument("--temperature", type=float, default=0)
+    parser.add_argument("--top_p", type=float, default=0.9)
+    parser.add_argument("--max_tokens", type=int, default=2048)
+    parser.add_argument("--stop_token", type=str, default=None)
+
+    # OpenCUAagent config
+    parser.add_argument("--cot_level", type=str, default="l2", help="CoT version: l1, l2, l3. Default is l2 includes 'thought' and 'action'")
+    parser.add_argument("--history_type", type=str, default="action_history", help="Use action to represent history steps", choices=["action_history", "thought_history", "observation_history"])
+    parser.add_argument("--coordinate_type", type=str, default="qwen25", help="Type of coordinate: Qwen2-VL or Kimi-VL based models use 'relative'; Qwen2.5-VL based models use 'qwen25'", choices=["relative", "qwen25"])
+    parser.add_argument("--max_image_history_length", type=int, default=3, help="The max number of images in the history.")
+    parser.add_argument("--use_old_sys_prompt", action="store_true", help="Use the old system prompt for OpenCUA-7B and OpenCUA-32B")
+    
+    # example config
+    parser.add_argument("--domain", type=str, default="all")
+    parser.add_argument(
+        "--test_all_meta_path", type=str, default="evaluation_examples/test_nogdrive.json"
+    )
+
+    # logging related
+    parser.add_argument("--result_dir", type=str, default="./results")
+    parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to run in parallel")  
+    parser.add_argument("--log_level", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], 
+                       default='INFO', help="Set the logging level")
+    # aws config
+    parser.add_argument(
+        "--region", type=str, default="us-east-1", help="AWS region for the VM"
     )
     parser.add_argument(
         "--provider_name", type=str, default="aws", choices=["aws", "virtualbox", "vmware", "docker", "azure"], help="Provider name"
@@ -58,84 +130,13 @@ def config() -> argparse.Namespace:
     parser.add_argument(
         "--screen_height", type=int, default=1080, help="Screen height"
     )
-    parser.add_argument("--sleep_after_execution", type=float, default=0.0)
-    parser.add_argument("--max_steps", type=int, default=15)
-
-    # agent config
-    parser.add_argument("--max_trajectory_length", type=int, default=3)
     parser.add_argument(
-        "--test_config_base_dir", type=str, default="evaluation_examples"
+        "--password", type=str, default="osworld-public-evaluation", help="The password for the computer if needed"
     )
-
-    # lm config
-    parser.add_argument("--model", type=str, default="")
-    parser.add_argument("--temperature", type=float, default=None)
-    parser.add_argument("--top_p", type=float, default=None)
-    parser.add_argument("--max_tokens", type=int, default=3000)
-    parser.add_argument("--stop_token", type=str, default=None)
-    
-    # thinking mode config
-    parser.add_argument("--no-thinking", action="store_true", 
-                       help="Disable thinking mode (no scratchpad)")
-    parser.add_argument("--use-isp", action="store_true", 
-                       help="Use interleaved scratchpad (ISP) mode")
-
-    # example config
-    parser.add_argument("--domain", type=str, default="all")
-    parser.add_argument(
-        "--test_all_meta_path", type=str, default="evaluation_examples/test_all.json"
-    )
-    parser.add_argument(
-        "--specific_task_id", type=str, default=None, 
-        help="Run only a specific task ID (overrides domain filtering)"
-    )
-
-    # logging related
-    parser.add_argument("--result_dir", type=str, default="./results")
-    parser.add_argument("--num_envs", type=int, default=1, help="Number of environments to run in parallel")
-    parser.add_argument("--log_level", type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], 
-                       default='INFO', help="Set the logging level")
-
-    # aws config
-    parser.add_argument(
-        "--region", type=str, default="us-east-1", help="AWS region for the VM"
-    )
-    
     args = parser.parse_args()
     return args
 
 args = config()  # Get command line arguments first
-
-# Validate that model is specified to prevent accidental usage with empty model
-if not args.model or args.model.strip() == "":
-    print("ERROR: Model must be specified. Use --model <model_name>")
-    print("Example: --model claude-sonnet-4-5-20250929")
-    sys.exit(1)
-
-# Validate model support before proceeding
-from mm_agents.anthropic.utils import validate_model_support
-
-# Pass same temperature/top_p and thinking parameters as will be used by the agent
-validation_kwargs = {}
-if args.temperature is not None:
-    validation_kwargs['temperature'] = args.temperature
-if args.top_p is not None:
-    validation_kwargs['top_p'] = args.top_p
-validation_kwargs['no_thinking'] = args.no_thinking
-validation_kwargs['use_isp'] = args.use_isp
-
-# if not validate_model_support(args.model, **validation_kwargs): #TODO: Adjust this to use AnthropicBedrock API
-#     print(f"\n💥 Model '{args.model}' api sample failed")
-#     sys.exit(1)
-
-# Validate thinking mode options are mutually exclusive
-if args.no_thinking and args.use_isp:
-    print("ERROR: --no-thinking and --use-isp are mutually exclusive")
-    print("Choose one of:")
-    print("  (default): Regular scratchpad mode")
-    print("  --no-thinking: Disable thinking/scratchpad")
-    print("  --use-isp: Use interleaved scratchpad (ISP)")
-    sys.exit(1)
 
 logger = logging.getLogger()
 log_level = getattr(logging, args.log_level.upper())
@@ -168,19 +169,15 @@ stdout_handler.addFilter(logging.Filter("desktopenv"))
 logger.addHandler(file_handler)
 logger.addHandler(debug_handler)
 logger.addHandler(stdout_handler)
-#  }}} Logger Configs #
 
 logger = logging.getLogger("desktopenv.experiment")
 
 
 def distribute_tasks(test_all_meta: dict) -> List[tuple]:
-    """Distribute tasks evenly across environments."""
-    # Flatten the tasks into a single list
     all_tasks = []
     for domain, examples in test_all_meta.items():
         for example_id in examples:
             all_tasks.append((domain, example_id))
-    
     return all_tasks
 
 
@@ -205,9 +202,7 @@ def process_signal_handler(signum, frame, env_idx):
     logger.info(f"Process {env_idx + 1} shutdown complete. Exiting.")
     sys.exit(0)
 
-
-def run_env_tasks(task_queue, args, shared_scores):
-    """Run tasks for a single environment."""
+def run_env_tasks(task_queue: Queue, args: argparse.Namespace, shared_scores: list):
     active_environments = []
     env = None
     try:
@@ -225,24 +220,11 @@ def run_env_tasks(task_queue, args, shared_scores):
             headless=args.headless,
             os_type="Ubuntu",
             require_a11y_tree=args.observation_type in ["a11y_tree", "screenshot_a11y_tree", "som"],
-            enable_proxy=False,
+            enable_proxy=True,
             client_password=args.client_password
         )
         active_environments.append(env)
-        agent = AnthropicAgent(
-            env=env,
-            model=args.model,
-            max_tokens=args.max_tokens,
-            top_p=args.top_p,
-            temperature=args.temperature,
-            action_space=args.action_space,
-            observation_type=args.observation_type,
-            max_trajectory_length=args.max_trajectory_length,
-            provider_name=args.provider_name,
-            screen_size=(args.screen_width, args.screen_height),
-            no_thinking=getattr(args, 'no_thinking', False),
-            use_isp=getattr(args, 'use_isp', False),
-        )
+        
         logger.info(f"Process {current_process().name} started.")
         while True:
             try:
@@ -268,8 +250,25 @@ def run_env_tasks(task_queue, args, shared_scores):
                     example_id,
                 )
                 os.makedirs(example_result_dir, exist_ok=True)
+                agent = OpenCUAAgent(
+                    env=env,
+                    model=args.model,
+                    max_tokens=args.max_tokens,
+                    top_p=args.top_p,
+                    temperature=args.temperature,
+                    action_space=args.action_space,
+                    observation_type=args.observation_type,
+                    cot_level=args.cot_level,
+                    history_type=args.history_type,
+                    screen_size=(args.screen_width, args.screen_height),
+                    coordinate_type=args.coordinate_type,
+                    max_image_history_length=args.max_image_history_length,
+                    max_steps=args.max_steps,
+                    use_old_sys_prompt=args.use_old_sys_prompt,
+                    password=args.password,
+                )
                 try:
-                    lib_run_single.run_single_example(
+                    lib_run_single.run_single_example_opencua(
                         agent,
                         env,
                         example,
@@ -283,14 +282,6 @@ def run_env_tasks(task_queue, args, shared_scores):
                     import traceback
                     logger.error(f"Exception in {current_process().name} {domain}/{example_id}: {e}")
                     logger.error(traceback.format_exc())
-                    
-                    # Log error to results.json
-                    try:
-                        example = {"id": example_id}  # Create minimal example dict for error logging
-                        log_task_error(example, str(e), example_result_dir, args)
-                    except Exception as log_e:
-                        logger.error(f"Failed to log error to results.json: {log_e}")
-                    
                     try:
                         env.controller.end_recording(
                             os.path.join(example_result_dir, "recording.mp4")
@@ -320,7 +311,7 @@ def run_env_tasks(task_queue, args, shared_scores):
                 logger.info(f"{current_process().name} environment closed successfully")
         except Exception as e:
             logger.error(f"{current_process().name} error during environment cleanup: {e}")
-
+            
 
 def signal_handler(signum, frame):
     """Handle termination signals (SIGINT, SIGTERM) to gracefully shutdown environments."""
@@ -514,7 +505,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, signal_handler)  # Handle termination signal
     
     try:
-        # args already defined globally above
+        args = config()
         
         # save args to json in result_dir/action_space/observation_type/model/args.json
         path_to_args = os.path.join(
@@ -531,28 +522,7 @@ if __name__ == "__main__":
         with open(args.test_all_meta_path, "r", encoding="utf-8") as f:
             test_all_meta = json.load(f)
 
-        # Filter for specific task ID if provided
-        if args.specific_task_id:
-            logger.info(f"Filtering for specific task ID: {args.specific_task_id}")
-            filtered_meta = {}
-            task_found = False
-            
-            for domain, task_ids in test_all_meta.items():
-                for task_id in task_ids:
-                    if task_id == args.specific_task_id:
-                        filtered_meta[domain] = [task_id]
-                        task_found = True
-                        logger.info(f"Found task {args.specific_task_id} in domain: {domain}")
-                        break
-                if task_found:
-                    break
-            
-            if not task_found:
-                logger.error(f"Task ID {args.specific_task_id} not found in test file!")
-                sys.exit(1)
-                
-            test_all_meta = filtered_meta
-        elif args.domain != "all":
+        if args.domain != "all":
             test_all_meta = {args.domain: test_all_meta[args.domain]}
 
         test_file_list = get_unfinished(

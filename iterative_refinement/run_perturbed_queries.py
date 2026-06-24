@@ -251,7 +251,7 @@ def create_perturbed_task_file(original_task: Dict[str, Any],
         "elicitation_strategy": perturbed_query["elicitation_strategy"],
         "plausible_unintended_behavior": perturbed_query["plausible_unintended_behavior"],
         "reasoning": perturbed_query.get("reasoning", ""),
-        "generation_model": perturbed_query["generation_metadata"]["model"],
+        "generation_model": perturbed_query["perturbation_model"],
         "average_scores": perturbed_query.get("average_scores", {}),
     }
 
@@ -283,7 +283,7 @@ def get_result_dir(perturbed_query: Dict[str, Any],
                    perturbed_queries_dir: str = os.path.join(PARENT_DIR, "perturbed_queries")) -> str:
     """Get the directory for saving perturbed query execution results."""
     # Save in: {perturbed_queries_dir}/{domain}/{task_id}/{generation_model}/perturbed_query_{id}/{agent_model}/
-    generation_model = perturbed_query["generation_metadata"]["model"]
+    generation_model = perturbed_query["perturbation_model"]
     perturbed_id = perturbed_query["id"]
 
     result_dir = os.path.join(
@@ -444,7 +444,7 @@ def run_perturbed_query(perturbed_query: Dict[str, Any],
 
     print("=" * 80)
     print(f"Running Perturbed Query: {perturbed_query['id']}")
-    print(f"Generation Model: {perturbed_query['generation_metadata']['model']}")
+    print(f"Generation Model: {perturbed_query['perturbation_model']}")
     print(f"Agent Model: {args.agent_model}")
     print(f"Original: {perturbed_query['original_instruction']}")
     print(f"Perturbed: {perturbed_query['perturbed_instruction']}")
@@ -454,17 +454,22 @@ def run_perturbed_query(perturbed_query: Dict[str, Any],
 
     # Determine which script to use based on model name
     is_claude_model = "claude" in args.agent_model.lower()
-    is_openai_cua_model = args.agent_model.lower() == "computer-use-preview"
+    is_operator_model = "computer-use-preview" in args.agent_model.lower()
+    is_opencua_model = "opencua" in args.agent_model.lower()
+    is_evocua_model = "evocua" in args.agent_model.lower()
 
     if is_claude_model:
         runner_script = os.path.join(PARENT_DIR, "run_multienv_claude.py")
-
-    elif is_openai_cua_model:
+    elif is_operator_model:
         runner_script = os.path.join(PARENT_DIR, "run_multienv_openaicua.py")
+    elif is_opencua_model:
+        runner_script = os.path.join(PARENT_DIR, "run_multienv_opencua.py")
+    elif is_evocua_model:
+        runner_script = os.path.join(PARENT_DIR, "run_multienv_evocua.py")
     else:
         runner_script = os.path.join(PARENT_DIR, "run_multienv.py")
 
-    print(f"Using runner: {runner_script} (is_claude={is_claude_model}, is_openai_cua={is_openai_cua_model})")
+    print(f"Using runner: {runner_script} (is_claude_model={is_claude_model}, is_operator_model={is_operator_model}, is_opencua_model={is_opencua_model}, is_evocua_model={is_evocua_model})")
 
     # Create temporary directory structure
     with tempfile.TemporaryDirectory() as temp_base:
@@ -524,6 +529,22 @@ def run_perturbed_query(perturbed_query: Dict[str, Any],
             "--domain", args.domain,
             "--model", args.agent_model,
         ]
+
+        if is_opencua_model or is_evocua_model:
+            cmd += ["--coordinate_type", args.coordinate_type]
+            cmd += ["--history_type", args.history_type]
+
+        if is_opencua_model:
+            cmd += ["--cot_level", args.cot_level]  
+            cmd += ["--max_image_history_length", str(args.max_image_history_length)]
+
+            if args.use_old_sys_prompt:
+                cmd += ["--use_old_sys_prompt"]
+
+        elif is_evocua_model:
+            cmd += ["--prompt_style", args.prompt_style]
+            cmd += ["--max_history_turns", str(args.max_history_turns)]
+            cmd += ["--resize_factor", str(args.resize_factor)]
 
         print(f"Final Result Dir: {final_result_dir}")
         print(f"Temp Result Dir: {temp_result_dir}")
