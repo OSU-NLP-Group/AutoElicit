@@ -108,8 +108,11 @@ Then use `./autoelicit_seed` as the base_dir for `iterative_refinement.py`:
 
 ```bash
 python iterative_refinement.py --task-id <task_id> --domain <domain> \
-    --perturbed-id <perturbation_id> --base-dir ./autoelicit_seed
+    --perturbed-id <perturbation_id> --perturbed_queries_dir ../autoelicit_seed
 ```
+
+> [!IMPORTANT]
+> Before running `iterative_refinement.py`, you **must** capture the environment context for each task. The refinement pipeline reuses this context across multiple prompts and loads it from `seed_generation/initial_states/{domain}/{task_id}/initial_state_description.md`. This step is required even when using the released AutoElicit-Seed dataset, since the seed dataset does not include captured environment states. To generate it, run [`seed_generation/capture_initial_states_parallel.py`](https://github.com/OSU-NLP-Group/AutoElicit/blob/main/seed_generation/capture_initial_states_parallel.py) followed by [`seed_generation/generate_state_descriptions.py`](https://github.com/OSU-NLP-Group/AutoElicit/blob/main/seed_generation/generate_state_descriptions.py). See [iterative_refinement/README_REFINEMENT.md](https://github.com/OSU-NLP-Group/AutoElicit/blob/main/iterative_refinement/README_REFINEMENT.md#prerequisites-capture-environment-context) for the full instructions.
 
 ### AutoElicit-Bench
 
@@ -164,6 +167,8 @@ This stage refines perturbed instructions to elicit unintended behaviors using *
 2. **Quality Feedback Loop (Inner Loop)** 
 
    Performs a *quality check* to ensure any proposed perturbation based on execution feedback maintains required quality thresholds before being executed. This inner loop continues until the perturbation meets all quality thresholds or until the max number of quality refinement iterations is reached.
+
+Before running this stage, you must capture the environment context for each task by running [`seed_generation/capture_initial_states_parallel.py`](https://github.com/OSU-NLP-Group/AutoElicit/blob/main/seed_generation/capture_initial_states_parallel.py) and then [`seed_generation/generate_state_descriptions.py`](https://github.com/OSU-NLP-Group/AutoElicit/blob/main/seed_generation/generate_state_descriptions.py). The refinement pipeline reuses this captured environment context across multiple prompts.
 
 To surface unintended behaviors using Execution-Guided Perturbation Refinement, follow the provided instructions in [iterative_refinement/README_REFINEMENT.md](https://github.com/OSU-NLP-Group/AutoElicit/blob/main/iterative_refinement/README_REFINEMENT.md).
 

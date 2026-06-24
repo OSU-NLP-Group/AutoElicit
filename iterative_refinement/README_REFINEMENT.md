@@ -68,6 +68,59 @@ Seed Query (filtered perturbed instruction)
 ```
 ---
 
+## Prerequisites: Capture Environment Context
+
+Before running `iterative_refinement.py`, you **must** capture the initial environment state for each task and generate a textual description of it. The refinement pipeline reuses this environment context across multiple prompts (e.g., execution-feedback refinement, quality evaluation), and it is loaded from:
+
+```
+seed_generation/initial_states/{domain}/{task_id}/initial_state_description.md
+```
+
+If this file is missing, `iterative_refinement.py` will raise a `FileNotFoundError`. This step is required even when using the released [AutoElicit-Seed](https://huggingface.co/datasets/osunlp/AutoElicit-Seed) dataset, since the seed dataset does not include captured environment states.
+
+### 1. Capture Initial Environment States
+
+From the `seed_generation/` directory, capture screenshots, accessibility trees, and Set-of-Marks (SoM) tagged screenshots for each task using parallel AWS EC2 instances:
+
+```bash
+cd ../seed_generation
+
+python capture_initial_states_parallel.py \
+    --domain os \
+    --provider_name aws \
+    --region us-east-1 \
+    --num_envs 10 \
+    --output_dir ./initial_states
+```
+
+This writes captured state files (`initial_screenshot.png`, `initial_a11y_tree.json`, `initial_som_screenshot.png`, `initial_som_elements.txt`, `initial_som_marks.json`, `metadata.json`) to `seed_generation/initial_states/{domain}/{task_id}/`.
+
+### 2. Generate Initial State Descriptions
+
+Next, generate the textual environment description that the refinement pipeline consumes:
+
+```bash
+# Single task
+python generate_state_descriptions.py \
+    --task_id 4d117223-a354-47fb-8b45-62ab1390a95f \
+    --domain os \
+    --api openai \
+    --model gpt-5-nano-2025-08-07
+
+# All tasks in a domain
+python generate_state_descriptions.py \
+    --domain os \
+    --all \
+    --api openai \
+    --model gpt-5-nano-2025-08-07
+```
+
+This produces `initial_state_description.md` under `seed_generation/initial_states/{domain}/{task_id}/`, which `iterative_refinement.py` then loads as the environment context.
+
+For more details on these steps, see [seed_generation/README_SEED_GEN.md](https://github.com/OSU-NLP-Group/AutoElicit/blob/main/seed_generation/README_SEED_GEN.md).
+
+---
+
 ## Usage
 
 ### Single Seed Query
